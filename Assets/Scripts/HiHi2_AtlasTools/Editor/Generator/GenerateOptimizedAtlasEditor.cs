@@ -10,7 +10,7 @@ public static class GenerateOptimizedAtlasEditor
 {
     private static AtlasGeneratorSettings cachedSettings;
 
-    [MenuItem("Assets/图集生成替换/生成优化图集", false, 3000)]
+    [MenuItem("Assets/Lod图及相关工具/图集生成替换/生成优化图集", false, 3000)]
     private static void GenerateAtlasFromSelection()
     {
         if (Selection.objects.Length == 0)

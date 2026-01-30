@@ -6,6 +6,7 @@
 + [材质替换 API](#材质替换-api)
 + [完整处理 API](#完整处理-api)
 + [LOD MaxSize 同步 API](#lod-maxsize-同步-api)
++ [材质纹理引用扫描 API](#材质纹理引用扫描-api)
 + [数据结构参考](#数据结构参考)
 + [注意事项与最佳实践](#注意事项与最佳实践)
 
@@ -52,6 +53,7 @@ if (result.success) {
 | **LOD MaxSize** | `SyncAllMaxSize` | 同步所有需要修改的 MaxSize | ⭐⭐⭐ |
 | **LOD MaxSize** | `ProcessMaxSizeSync` | 扫描 + 同步（自动模式） | ⭐⭐⭐⭐ |
 | **LOD MaxSize** | `ProcessMaxSizeSyncCustom` | 扫描 + 同步（自定义模式） | ⭐⭐⭐⭐ |
+| **纹理引用** | `ScanMaterialTextureReferences` | 扫描材质纹理引用关系 | ⭐⭐⭐⭐⭐ |
 
 
 ---
@@ -247,13 +249,13 @@ public static MaxSizeScanResult ScanProjectMaxSize(string projectPath)
 
 
 **目录结构要求**  
-[projectPath]/   
-├── LOD/   
-│ └── Texture/ ← LOD 纹理目录   
-│ ├── cloth_body.png   
-│ └── cloth_arm.png   
-└── Texture/ ← 源 Lod0 纹理目录   
-├── cloth_body_lod0.png   
+[projectPath]/  
+├── LOD/  
+│ └── Texture/ ← LOD 纹理目录  
+│ ├── cloth_body.png  
+│ └── cloth_arm.png  
+└── Texture/ ← 源 Lod0 纹理目录  
+├── cloth_body_lod0.png  
 └── cloth_arm_lod0.png
 
 ## **示例代码**
@@ -277,17 +279,19 @@ if (scanResult.success) {
 ### ScanMaxSizeCustom
 扫描纹理的 MaxSize 匹配信息（自定义模式），可指定任意两个纹理文件夹。
 
-## **方法签名**
+**方法签名**
+
 ```csharp
 public static MaxSizeScanResult ScanMaxSizeCustom( string lodTexturePath, string sourceTexturePath )
 ```
 
-##   
-**示例代码**  
+**示例代码**
 
 ```csharp
 var scanResult = AtlasToolsAPI.ScanMaxSizeCustom( lodTexturePath: "Assets/CustomLOD/Textures", sourceTexturePath: "Assets/CustomSource/Textures" );
 ```
+
+
 
 ### SyncAllMaxSize
 同步所有需要修改的纹理 MaxSize，需配合扫描方法使用。
@@ -302,10 +306,10 @@ public static MaxSizeSyncResult SyncAllMaxSize( List<TextureMaxSizeMatchInfo> ma
 
 | 参数 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| `matchInfoList` | List<TextureMaxSizeMatchInfo> | ✅ | 从扫描方法获取的匹配信息列表 |
+| `matchInfoList` | List | ✅ | 从扫描方法获取的匹配信息列表 |
 
 
-## **示例代码**  
+**示例代码**
 
 ```csharp
 // 分步执行：先扫描，再同步
@@ -347,7 +351,7 @@ if (scanResult.success && scanResult.needsSyncCount > 0) {
 | `atlasCount` | int | 生成的图集数量 |
 | `textureCount` | int | 包含的纹理总数 |
 | `outputPath` | string | 输出目录路径 |
-| `atlasFiles` | List<string> | 生成的文件列表（.png 和 .asset） |
+| `atlasFiles` | List | 生成的文件列表（.png 和 .asset） |
 
 
 ---
@@ -362,7 +366,7 @@ if (scanResult.success && scanResult.needsSyncCount > 0) {
 | `materialCount` | int | 处理的材质数量 |
 | `replacedTextureCount` | int | 替换的纹理数量 |
 | `outputPath` | string | 输出目录路径 |
-| `processedMaterials` | List<string> | 处理的材质名称列表 |
+| `processedMaterials` | List | 处理的材质名称列表 |
 
 
 ---
@@ -390,7 +394,7 @@ MaxSize 扫描结果。
 | `totalCount` | int | 扫描到的纹理总数 |
 | `matchedCount` | int | 成功匹配源纹理的数量 |
 | `needsSyncCount` | int | 需要同步 MaxSize 的数量 |
-| `matchInfoList` | List<TextureMaxSizeMatchInfo> | 纹理匹配详情列表 |
+| `matchInfoList` | List | 纹理匹配详情列表 |
 
 
 ---
@@ -488,11 +492,129 @@ public void ProcessWithErrorHandling() {
 
 ---
 
+## 材质纹理引用扫描 API
+### ScanMaterialTextureReferences
+扫描指定文件夹下所有材质对纹理的引用关系，支持智能路径识别。
+
+**方法签名**
+
+```csharp
+public static TextureReferenceScanAPIResult ScanMaterialTextureReferences(string folderPath)
+```
+
+**参数说明**
+
+| 参数 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `folderPath` | string | ✅ | 文件夹路径，必须以 `Assets/` 开头 |
+
+
+**智能路径识别规则**
+
+| 传入路径类型 | 扫描行为 |
+| --- | --- |
+| Material 文件夹 | 直接扫描该文件夹内的所有材质 |
+| 包含 Material 子目录的项目文件夹 | 自动定位并扫描 Material 子目录 |
+| 其他文件夹 | 递归扫描所有子目录中的 Material 文件夹 |
+
+
+**返回值**
+
+返回 `TextureReferenceScanAPIResult` 对象，详见 [TextureReferenceScanAPIResult](#texturereferencescanapiresult)。
+
+**示例代码**
+
+```csharp
+// 方式一：直接传入 Material 文件夹
+var result = AtlasToolsAPI.ScanMaterialTextureReferences("Assets/MyProject/Material");
+
+// 方式二：传入项目根目录（自动查找 Material 子目录）
+var result = AtlasToolsAPI.ScanMaterialTextureReferences("Assets/MyProject");
+
+// 方式三：传入包含多个项目的根目录（递归扫描）
+var result = AtlasToolsAPI.ScanMaterialTextureReferences("Assets/Characters");
+
+if (result.success)
+{
+    Debug.Log($"扫描完成：{result.totalMaterialCount} 个材质，{result.totalTextureCount} 张纹理");
+    Debug.Log($"多引用纹理：{result.multiReferenceTextureCount} 张");
+    Debug.Log($"单引用纹理：{result.singleReferenceTextureCount} 张");
+
+    // 查看被多个材质引用的纹理
+    foreach (var texInfo in result.multiReferencedTextures)
+    {
+        Debug.Log($"纹理 [{texInfo.textureName}] 被 {texInfo.referenceCount} 个材质引用:");
+        foreach (var matRef in texInfo.referencedByMaterials)
+        {
+            Debug.Log($"  - {matRef.materialName} (属性: {string.Join(", ", matRef.propertyNames)})");
+        }
+    }
+}
+else
+{
+    Debug.LogError($"扫描失败：{result.message}");
+}
+```
+
+
+
+**典型应用场景**
+
+1. **纹理优化分析**：查找被多个材质共用的纹理，评估是否适合合并到图集
+2. **资源依赖审计**：了解材质与纹理的引用关系，辅助资源整理
+3. **问题排查**：定位纹理丢失或引用异常的材质
+
+---
+
+### TextureReferenceScanAPIResult
+材质纹理引用扫描结果。
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `success` | bool | 操作是否成功 |
+| `message` | string | 结果描述信息 |
+| `totalMaterialCount` | int | 扫描的材质总数 |
+| `totalTextureCount` | int | 扫描的纹理总数 |
+| `multiReferenceTextureCount` | int | 被多个材质引用的纹理数量 |
+| `singleReferenceTextureCount` | int | 仅被单个材质引用的纹理数量 |
+| `allTextures` | List | 所有纹理引用信息列表 |
+| `multiReferencedTextures` | List | 被多个材质引用的纹理列表 |
+| `singleReferencedTextures` | List | 仅被单个材质引用的纹理列表 |
+
+
+---
+
+### TextureReferenceAPIInfo
+纹理引用信息。
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `texturePath` | string | 纹理资源路径 |
+| `textureName` | string | 纹理名称 |
+| `referenceCount` | int | 被引用次数（引用该纹理的材质数量） |
+| `referencedByMaterials` | List | 引用该纹理的材质详情列表 |
+
+
+---
+
+### MaterialReferenceAPIDetail
+材质引用详情。
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `materialPath` | string | 材质资源路径 |
+| `materialName` | string | 材质名称 |
+| `propertyNames` | List | 引用该纹理的 Shader 属性名列表（如 `_MainTex`、`_BumpMap`） |
+
+
+---
+
 ## 版本历史
 | 版本 | 更新内容 |
 | --- | --- |
 | 1.0 | 初始版本：图集生成、材质替换功能 |
 | 1.1 | 新增 LOD MaxSize 扫描与同步功能 |
 | 1.2 | 新增 `ScanAndSyncMaxSize` 一键方法（推荐） |
+| 1.3 | 新增 `ScanMaterialTextureReferences` 材质纹理引用扫描功能 |
 
 

@@ -31,7 +31,7 @@ public class MaterialAtlasReplacerWindow : EditorWindow
     private bool autoAnalyzed = false;
     private Rect atlasConfigListRect = Rect.zero;
 
-    [MenuItem("Assets/图集生成替换/材质图集替换", false, 3000)]
+    [MenuItem("Assets/Lod图及相关工具/图集生成替换/材质图集替换", false, 3000)]
     public static void ShowWindowFromAssets()
     {
         Object[] selectedObjects = Selection.objects;
@@ -52,7 +52,7 @@ public class MaterialAtlasReplacerWindow : EditorWindow
         ShowWindow(selectedPath);
     }
 
-    [MenuItem("Assets/图集生成替换/材质图集替换", true)]
+    [MenuItem("Assets/Lod图及相关工具/图集生成替换/材质图集替换", true)]
     public static bool ValidateShowWindowFromAssets()
     {
         if (Selection.objects.Length == 0)
@@ -70,7 +70,7 @@ public class MaterialAtlasReplacerWindow : EditorWindow
         // return folderName.Equals("Material", System.StringComparison.OrdinalIgnoreCase);
     }
 
-    [MenuItem("Tools/图集生成替换/材质图集替换工具", false, 3000)]
+    [MenuItem("Tools/Lod图及相关工具/图集生成替换/材质图集替换工具", false, 3000)]
     public static void ShowWindowMenu()
     {
         ShowWindow(null);
@@ -308,7 +308,7 @@ public class MaterialAtlasReplacerWindow : EditorWindow
     {
         EditorGUILayout.LabelField("图集配置文件夹", EditorStyles.boldLabel);
         EditorGUILayout.BeginHorizontal();
-        
+
         EditorGUI.BeginChangeCheck();
         DefaultAsset newAtlasConfigFolder = (DefaultAsset)EditorGUILayout.ObjectField(customAtlasConfigFolder, typeof(DefaultAsset), false);
         if (EditorGUI.EndChangeCheck())
@@ -398,19 +398,19 @@ public class MaterialAtlasReplacerWindow : EditorWindow
         }
 
         EditorGUILayout.EndVertical();
-        
+
         // 获取刚刚绘制的区域
         if (Event.current.type == EventType.Repaint)
         {
             atlasConfigListRect = GUILayoutUtility.GetLastRect();
         }
-        
+
         // 仅在自定义模式下且允许拖拽时处理拖拽
         if (currentMode == PathMode.Custom && allowDragDrop)
         {
             HandleAtlasConfigDragAndDrop();
         }
-        
+
         EditorGUI.indentLevel--;
     }
 
@@ -437,7 +437,7 @@ public class MaterialAtlasReplacerWindow : EditorWindow
             {
                 if (draggedObject == null)
                     continue;
-                    
+
                 string path = AssetDatabase.GetAssetPath(draggedObject);
                 if (!string.IsNullOrEmpty(path) && AssetDatabase.IsValidFolder(path))
                 {
@@ -458,10 +458,10 @@ public class MaterialAtlasReplacerWindow : EditorWindow
         if (eventType == EventType.DragPerform)
         {
             DragAndDrop.AcceptDrag();
-            
+
             customAtlasConfigFolder = AssetDatabase.LoadAssetAtPath<DefaultAsset>(validFolderPath);
             RefreshAtlasConfigsOnFolderChange();
-            
+
             AtlasLogger.Log($"<color=green>已通过拖拽设置图集配置文件夹:</color> {validFolderPath}");
         }
 

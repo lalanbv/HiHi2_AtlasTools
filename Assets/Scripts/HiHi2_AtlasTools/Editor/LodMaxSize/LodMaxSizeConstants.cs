@@ -6,8 +6,8 @@
         public const string TEXTURE_SUBFOLDER = "Texture";
         public const string LOD0_SUFFIX = "_lod0";
 
-        public const string MENU_PATH_ASSETS = "Assets/图集生成替换/LOD Texture MaxSize Sync";
-        public const string MENU_PATH_TOOLS = "Tools/图集生成替换/LOD MaxSize同步工具";
+        public const string MENU_PATH_ASSETS = "Assets/Lod图及相关工具/图集生成替换/LOD Texture MaxSize Sync";
+        public const string MENU_PATH_TOOLS = "Tools/Lod图及相关工具/图集生成替换/LOD MaxSize同步工具";
 
         public const string WINDOW_TITLE = "LOD Texture MaxSize Sync";
         public const float WINDOW_MIN_WIDTH = 900f;

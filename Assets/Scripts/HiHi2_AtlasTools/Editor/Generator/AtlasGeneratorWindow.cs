@@ -25,7 +25,7 @@ public class AtlasGeneratorWindow : EditorWindow
     private Dictionary<int, TexturePreviewController> previewControllers = new Dictionary<int, TexturePreviewController>();
     private Dictionary<int, bool> advancedPreviewFoldouts = new Dictionary<int, bool>();
 
-    [MenuItem("Tools/图集生成替换/图集生成器窗口", false, 3000)]
+    [MenuItem("Tools/Lod图及相关工具/图集生成替换/图集生成器窗口", false, 3000)]
     public static void OpenWindowMenu()
     {
         ShowWindow(null);
@@ -194,7 +194,7 @@ public class AtlasGeneratorWindow : EditorWindow
 
         EditorGUILayout.LabelField("图集输出路径", EditorStyles.boldLabel);
         EditorGUILayout.BeginHorizontal();
-        
+
         // 修改：使用原生的 ObjectField 替代 TextField
         customOutputFolder = (DefaultAsset)EditorGUILayout.ObjectField(customOutputFolder, typeof(DefaultAsset), false);
         if (customOutputFolder != null)
@@ -210,7 +210,7 @@ public class AtlasGeneratorWindow : EditorWindow
                 string relativePath = "Assets" + path.Substring(Application.dataPath.Length);
                 customOutputPath = AtlasPathUtility.NormalizePath(relativePath);
                 customOutputFolder = AssetDatabase.LoadAssetAtPath<DefaultAsset>(customOutputPath);
-                
+
                 if (customOutputFolder == null && !AssetDatabase.IsValidFolder(customOutputPath))
                 {
                     EditorUtility.DisplayDialog("提示", "路径不存在，将在生成时自动创建。", "确定");

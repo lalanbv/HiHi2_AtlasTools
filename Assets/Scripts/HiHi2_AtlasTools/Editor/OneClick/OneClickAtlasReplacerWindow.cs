@@ -7,7 +7,7 @@ namespace HiHi2.AtlasTools.Editor
     public class OneClickAtlasReplacerWindow : EditorWindow
     {
         private PathMode currentMode = PathMode.Auto;
-        
+
         private DefaultAsset targetFolder;
         private AtlasGeneratorSettings settings;
 
@@ -28,7 +28,7 @@ namespace HiHi2.AtlasTools.Editor
         private string logMessage = "";
         private MessageType logType = MessageType.Info;
 
-        [MenuItem("Assets/图集生成替换/一键图集生成与材质替换", false, 0)]
+        [MenuItem("Assets/Lod图及相关工具/图集生成替换/一键图集生成与材质替换", false, 0)]
         private static void ShowWindowFromAssets()
         {
             Object[] selectedObjects = Selection.objects;
@@ -48,7 +48,7 @@ namespace HiHi2.AtlasTools.Editor
             ShowWindow(selectedPath);
         }
 
-        [MenuItem("Assets/图集生成替换/一键图集生成与材质替换", true)]
+        [MenuItem("Assets/Lod图及相关工具/图集生成替换/一键图集生成与材质替换", true)]
         private static bool ValidateShowWindowFromAssets()
         {
             if (Selection.objects.Length == 0) return false;
@@ -56,7 +56,7 @@ namespace HiHi2.AtlasTools.Editor
             return AssetDatabase.IsValidFolder(selectedPath);
         }
 
-        [MenuItem("Tools/图集生成替换/一键图集生成与材质替换工具", false, 0)]
+        [MenuItem("Tools/Lod图及相关工具/图集生成替换/一键图集生成与材质替换工具", false, 0)]
         public static void ShowWindowMenu() => ShowWindow(null);
 
         public static void ShowWindow(string folderPath)
@@ -89,9 +89,9 @@ namespace HiHi2.AtlasTools.Editor
             }
             else
             {
-                logMessage = "结构不完整：\n" + 
-                    (!foundMaterialFolder ? "- 缺少 Material 文件夹\n" : "") + 
-                    (!foundTextureFolder ? "- 缺少 Texture 文件夹\n" : "");
+                logMessage = "结构不完整：\n" +
+                             (!foundMaterialFolder ? "- 缺少 Material 文件夹\n" : "") +
+                             (!foundTextureFolder ? "- 缺少 Texture 文件夹\n" : "");
                 logType = MessageType.Warning;
             }
         }
@@ -102,7 +102,7 @@ namespace HiHi2.AtlasTools.Editor
             EditorGUILayout.Space(5);
             DrawModeSelector();
             EditorGUILayout.Space(5);
-            
+
             scrollPos = EditorGUILayout.BeginScrollView(scrollPos);
             DrawConfigSection();
             EditorGUILayout.Space(10);
@@ -123,9 +123,9 @@ namespace HiHi2.AtlasTools.Editor
         private void DrawModeSelector()
         {
             EditorGUILayout.BeginHorizontal();
-            if (GUILayout.Toggle(currentMode == PathMode.Auto, "自动模式", "ButtonLeft", GUILayout.Height(25))) 
+            if (GUILayout.Toggle(currentMode == PathMode.Auto, "自动模式", "ButtonLeft", GUILayout.Height(25)))
                 currentMode = PathMode.Auto;
-            if (GUILayout.Toggle(currentMode == PathMode.Custom, "自定义模式", "ButtonRight", GUILayout.Height(25))) 
+            if (GUILayout.Toggle(currentMode == PathMode.Custom, "自定义模式", "ButtonRight", GUILayout.Height(25)))
                 currentMode = PathMode.Custom;
             EditorGUILayout.EndHorizontal();
         }
@@ -158,11 +158,11 @@ namespace HiHi2.AtlasTools.Editor
         {
             customTextureFolder = DrawFolderSelector("Texture 源路径", customTextureFolder);
             customMaterialFolder = DrawFolderSelector("材质球源路径", customMaterialFolder);
-            
+
             // 修改：使用 DrawFolderSelector 统一行为
             customAtlasOutputFolder = DrawFolderSelector("图集输出路径", customAtlasOutputFolder);
             if (customAtlasOutputFolder != null) customAtlasOutputPath = AssetDatabase.GetAssetPath(customAtlasOutputFolder);
-            
+
             customMaterialOutputFolder = DrawFolderSelector("新材质保存路径", customMaterialOutputFolder);
             if (customMaterialOutputFolder != null) customMaterialOutputPath = AssetDatabase.GetAssetPath(customMaterialOutputFolder);
         }
@@ -181,6 +181,7 @@ namespace HiHi2.AtlasTools.Editor
                     result = AssetDatabase.LoadAssetAtPath<DefaultAsset>(relative);
                 }
             }
+
             EditorGUILayout.EndHorizontal();
             return result;
         }
@@ -190,7 +191,7 @@ namespace HiHi2.AtlasTools.Editor
             settings = (AtlasGeneratorSettings)EditorGUILayout.ObjectField("配置资源", settings, typeof(AtlasGeneratorSettings), false);
             if (settings == null)
             {
-                if (GUILayout.Button("自动加载/创建配置")) 
+                if (GUILayout.Button("自动加载/创建配置"))
                     settings = GenerateOptimizedAtlasEditor.LoadOrCreateSettings();
                 return;
             }
@@ -198,7 +199,7 @@ namespace HiHi2.AtlasTools.Editor
             EditorGUI.BeginChangeCheck();
             settings.padding = EditorGUILayout.IntSlider("间距 (Padding)", settings.padding, 0, 16);
             settings.maxWastagePercent = EditorGUILayout.Slider("最大空白率 %", settings.maxWastagePercent, 0f, 50f);
-            settings.maxAtlasSize = EditorGUILayout.IntPopup("最大图集尺寸", settings.maxAtlasSize, 
+            settings.maxAtlasSize = EditorGUILayout.IntPopup("最大图集尺寸", settings.maxAtlasSize,
                 new[] { "512", "1024", "2048", "4096" }, new[] { 512, 1024, 2048, 4096 });
             settings.allowMultipleAtlases = EditorGUILayout.Toggle("允许多图集", settings.allowMultipleAtlases);
             if (EditorGUI.EndChangeCheck()) EditorUtility.SetDirty(settings);
@@ -214,13 +215,14 @@ namespace HiHi2.AtlasTools.Editor
                     ExecuteProcess();
                 }
             }
+
             GUI.enabled = true;
         }
 
         private void ExecuteProcess()
         {
             logMessage = "";
-            
+
             var paths = new OneClickAtlasProcessor.ProcessPaths
             {
                 textureSource = GetTextureSourcePath(),
@@ -229,10 +231,10 @@ namespace HiHi2.AtlasTools.Editor
                 materialOutput = GetMaterialOutputPath()
             };
 
-            bool success = OneClickAtlasProcessor.Execute(paths, settings, (msg, progress) => {
+            bool success = OneClickAtlasProcessor.Execute(paths, settings, (msg, progress) =>
+            {
                 logMessage += $"[{System.DateTime.Now:HH:mm:ss}] {msg}\n";
-                logType = progress >= 1f ? MessageType.Info : 
-                          (msg.Contains("错误") || msg.Contains("Error") ? MessageType.Error : MessageType.Info);
+                logType = progress >= 1f ? MessageType.Info : (msg.Contains("错误") || msg.Contains("Error") ? MessageType.Error : MessageType.Info);
                 Repaint();
             });
 
@@ -244,25 +246,24 @@ namespace HiHi2.AtlasTools.Editor
 
         private bool ValidateInput()
         {
-            if (currentMode == PathMode.Auto) 
+            if (currentMode == PathMode.Auto)
                 return targetFolder != null && foundMaterialFolder && foundTextureFolder;
-            return customTextureFolder != null && customMaterialFolder != null && 
+            return customTextureFolder != null && customMaterialFolder != null &&
                    !string.IsNullOrEmpty(customAtlasOutputPath) && !string.IsNullOrEmpty(customMaterialOutputPath);
         }
 
         private string GetTextureSourcePath() => currentMode == PathMode.Auto ? textureFolderPath : AssetDatabase.GetAssetPath(customTextureFolder);
         private string GetMaterialSourcePath() => currentMode == PathMode.Auto ? materialFolderPath : AssetDatabase.GetAssetPath(customMaterialFolder);
-        
+
         private string GetAtlasOutputPath()
         {
-            if (currentMode == PathMode.Auto) 
+            if (currentMode == PathMode.Auto)
                 return GenerateOptimizedAtlasEditor.PrepareOutputFolder(GetTextureSourcePath());
             AtlasPathUtility.EnsureFolderExists(customAtlasOutputPath);
             return customAtlasOutputPath;
         }
 
-        private string GetMaterialOutputPath() => currentMode == PathMode.Auto ? 
-            AtlasPathUtility.GetAutoMaterialOutputPath(GetMaterialSourcePath()) : customMaterialOutputPath;
+        private string GetMaterialOutputPath() => currentMode == PathMode.Auto ? AtlasPathUtility.GetAutoMaterialOutputPath(GetMaterialSourcePath()) : customMaterialOutputPath;
 
         private void DrawLogSection()
         {

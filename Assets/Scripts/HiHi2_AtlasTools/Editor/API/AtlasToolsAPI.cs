@@ -752,6 +752,170 @@ namespace HiHi2.AtlasTools.Editor
 
         #endregion
 
+        #region 方法七：材质纹理引用扫描
+
+        /// <summary>
+        /// 材质纹理引用扫描结果
+        /// </summary>
+        public class TextureReferenceScanAPIResult
+        {
+            public bool success;
+            public string message;
+            public int totalMaterialCount;
+            public int totalTextureCount;
+            public int multiReferenceTextureCount;
+            public int singleReferenceTextureCount;
+            public List<TextureReferenceAPIInfo> allTextures = new List<TextureReferenceAPIInfo>();
+            public List<TextureReferenceAPIInfo> multiReferencedTextures = new List<TextureReferenceAPIInfo>();
+            public List<TextureReferenceAPIInfo> singleReferencedTextures = new List<TextureReferenceAPIInfo>();
+        }
+
+        /// <summary>
+        /// 纹理引用信息（API版本）
+        /// </summary>
+        public class TextureReferenceAPIInfo
+        {
+            public string texturePath;
+            public string textureName;
+            public int referenceCount;
+            public List<MaterialReferenceAPIDetail> referencedByMaterials = new List<MaterialReferenceAPIDetail>();
+        }
+
+        /// <summary>
+        /// 材质引用详情（API版本）
+        /// </summary>
+        public class MaterialReferenceAPIDetail
+        {
+            public string materialPath;
+            public string materialName;
+            public List<string> propertyNames = new List<string>();
+        }
+
+        /// <summary>
+        /// 扫描材质纹理引用
+        /// 自动识别传入路径类型并选择合适的扫描模式：
+        /// - 如果路径是 Material 文件夹，直接扫描该文件夹内的材质
+        /// - 如果路径下包含 Material 子文件夹，扫描该子文件夹
+        /// - 否则递归扫描所有子目录中的 Material 文件夹
+        /// </summary>
+        /// <param name="folderPath">文件夹路径（Assets/...格式）</param>
+        /// <returns>扫描结果，包含所有纹理引用信息</returns>
+        public static TextureReferenceScanAPIResult ScanMaterialTextureReferences(string folderPath)
+        {
+            var result = new TextureReferenceScanAPIResult();
+
+            try
+            {
+                if (string.IsNullOrEmpty(folderPath))
+                {
+                    result.success = false;
+                    result.message = "文件夹路径不能为空";
+                    AtlasLogger.LogError(result.message);
+                    return result;
+                }
+
+                folderPath = AtlasPathUtility.NormalizePath(folderPath);
+
+                if (!AtlasPathUtility.IsValidAssetPath(folderPath))
+                {
+                    result.success = false;
+                    result.message = $"路径格式无效，必须以Assets/开头: {folderPath}";
+                    AtlasLogger.LogError(result.message);
+                    return result;
+                }
+
+                if (!UnityEditor.AssetDatabase.IsValidFolder(folderPath))
+                {
+                    result.success = false;
+                    result.message = $"指定路径不是有效文件夹: {folderPath}";
+                    AtlasLogger.LogError(result.message);
+                    return result;
+                }
+
+                TextureReferenceScanResult scanResult;
+                string folderName = System.IO.Path.GetFileName(folderPath);
+
+                if (folderName == "Material")
+                {
+                    AtlasLogger.Log($"检测到 Material 文件夹，直接扫描...");
+                    scanResult = MaterialTextureScanner.ScanMaterialFolder(folderPath);
+                }
+                else
+                {
+                    string materialSubFolder = System.IO.Path.Combine(folderPath, "Material").Replace("\\", "/");
+                    if (UnityEditor.AssetDatabase.IsValidFolder(materialSubFolder))
+                    {
+                        AtlasLogger.Log($"检测到项目文件夹，扫描其 Material 子目录...");
+                        scanResult = MaterialTextureScanner.ScanMaterialFolder(materialSubFolder);
+                    }
+                    else
+                    {
+                        AtlasLogger.Log($"递归扫描所有子目录中的 Material 文件夹...");
+                        scanResult = MaterialTextureScanner.ScanMultipleProjectFolders(folderPath);
+                    }
+                }
+
+                result.success = scanResult.success;
+                result.message = scanResult.message;
+                result.totalMaterialCount = scanResult.totalMaterialCount;
+                result.totalTextureCount = scanResult.totalTextureCount;
+                result.multiReferenceTextureCount = scanResult.multiReferenceTextureCount;
+                result.singleReferenceTextureCount = scanResult.singleReferenceTextureCount;
+
+                foreach (var texInfo in scanResult.allTextures)
+                {
+                    result.allTextures.Add(ConvertToAPIInfo(texInfo));
+                }
+
+                foreach (var texInfo in scanResult.multiReferencedTextures)
+                {
+                    result.multiReferencedTextures.Add(ConvertToAPIInfo(texInfo));
+                }
+
+                foreach (var texInfo in scanResult.singleReferencedTextures)
+                {
+                    result.singleReferencedTextures.Add(ConvertToAPIInfo(texInfo));
+                }
+
+                if (result.success)
+                {
+                    AtlasLogger.Log($"<color=green>{result.message}</color>");
+                }
+            }
+            catch (Exception e)
+            {
+                result.success = false;
+                result.message = $"扫描异常: {e.Message}";
+                AtlasLogger.LogError($"{result.message}\n{e.StackTrace}");
+            }
+
+            return result;
+        }
+
+        private static TextureReferenceAPIInfo ConvertToAPIInfo(TextureReferenceInfo texInfo)
+        {
+            var apiInfo = new TextureReferenceAPIInfo
+            {
+                texturePath = texInfo.texturePath,
+                textureName = texInfo.textureName,
+                referenceCount = texInfo.referenceCount
+            };
+
+            foreach (var matRef in texInfo.referencedByMaterials)
+            {
+                apiInfo.referencedByMaterials.Add(new MaterialReferenceAPIDetail
+                {
+                    materialPath = matRef.materialPath,
+                    materialName = matRef.materialName,
+                    propertyNames = new List<string>(matRef.propertyNames)
+                });
+            }
+
+            return apiInfo;
+        }
+
+        #endregion
+
         #region 私有辅助方法
 
         private static bool ValidateAtlasGenerationInput(string sourceTexturePath, string outputAtlasPath, out string errorMsg)
