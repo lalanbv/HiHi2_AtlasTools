@@ -8,9 +8,11 @@
 + [LOD MaxSize 同步 API](#lod-maxsize-同步-api)
 + [材质纹理引用扫描 API](#材质纹理引用扫描-api)
 + [数据结构参考](#数据结构参考)
++ [小程序资源迁移](#小程序资源迁移-api)
 + [注意事项与最佳实践](#注意事项与最佳实践)
 
 ---
+# HiHi2_AtlasTools API 文档
 
 ## 快速入门
 ### 引入命名空间
@@ -38,6 +40,28 @@ if (result.success) {
     Debug.Log($"同步完成：{result.syncResult.syncedCount} 个纹理已更新");
 }
 ```
+
+---
+
+## 概述
+
+HiHi2_AtlasTools 提供了一套完整的API接口，用于图集生成、材质替换、纹理引用分析和小程序资源迁移等操作。
+
+---
+
+## API 方法索引
+
+| 方法 | 功能描述 |
+|------|----------|
+| GenerateAtlas | 生成图集和配置文件 |
+| ReplaceMaterialTextures | 执行材质图集替换 |
+| ProcessAll | 完整处理流程（图集生成+材质替换） |
+| ScanAndSyncMaxSize | LOD MaxSize 扫描和同步 |
+| ScanMaterialTextureReferences | 材质纹理引用扫描 |
+| ScanMiniGameObjects | 扫描可迁移到小程序的物件 |
+| MigrateObjectToMiniGame | 迁移单个物件到小程序 |
+| MigrateBatchToMiniGame | 批量迁移物件到小程序 |
+| QuickMigrateToMiniGame | 一键迁移到小程序 |
 
 ---
 
@@ -606,15 +630,149 @@ else
 | `materialName` | string | 材质名称 |
 | `propertyNames` | List | 引用该纹理的 Shader 属性名列表（如 `_MainTex`、`_BumpMap`） |
 
+---
+
+## 八、小程序资源迁移 API
+
+### 8.1 ScanMiniGameObjects
+
+扫描指定文件夹下可迁移到小程序的物件。
+
+**参数：**
+- `folderPath` (string): 源文件夹路径（Assets/...格式）
+
+**返回：**
+- `MiniGameScanResult`: 扫描结果
+
+**示例：**
+```csharp
+var result = AtlasToolsAPI.ScanMiniGameObjects("Assets/Art/Avatar/BasicAvatar/Head");
+if (result.success) 
+{
+    foreach (var obj in result.objects) 
+    {
+        if (obj.canMigrate) 
+        {
+            Debug.Log($"可迁移: {obj.objectName}");
+        }
+    }
+}
+```
+
+### 8.2 MigrateObjectToMiniGame
+
+迁移单个物件到小程序目录。
+
+**参数：**
+- `sourceObjectPath` (string): 源物件文件夹路径
+- `lodLevel` (int): LOD级别（1/2/3），默认1
+- `useLodMesh` (bool): 是否使用LOD Mesh，默认false
+- `createPrefab` (bool): 是否创建Prefab，默认true
+
+**返回：**
+- `MiniGameMigrationAPIResult`: 迁移结果
+
+**示例：**
+```csharp
+var result = AtlasToolsAPI.MigrateObjectToMiniGame( "Assets/Art/Avatar/BasicAvatar/Head/fh_0001", lodLevel: 1, useLodMesh: false, createPrefab: true );
+if (result.success) 
+{
+    Debug.Log($"迁移成功: {result.message}"); 
+    Debug.Log($"复制材质: {result.copiedMaterialCount}"); 
+    Debug.Log($"复制纹理: {result.copiedTextureCount}");
+}
+```
+### 8.3 MigrateBatchToMiniGame
+
+批量迁移物件到小程序目录。
+
+**参数：**
+- `folderPath` (string): 源文件夹路径
+- `lodLevel` (int): LOD级别（1/2/3），默认1
+- `useLodMesh` (bool): 是否使用LOD Mesh，默认false
+- `createPrefab` (bool): 是否创建Prefab，默认true
+
+**返回：**
+- `MiniGameBatchMigrationAPIResult`: 批量迁移结果
+
+**示例：**
+```csharp
+// 批量迁移整个Head目录
+var result = AtlasToolsAPI.MigrateBatchToMiniGame( "Assets/Art/Avatar/BasicAvatar/Head", lodLevel: 1, useLodMesh: false, createPrefab: true );
+Debug.Log($"总数: {result.totalCount}");
+Debug.Log($"成功: {result.successCount}");
+Debug.Log($"失败: {result.failedCount}");
+```
+
+### 8.4 QuickMigrateToMiniGame
+
+一键迁移指定文件夹到小程序目录（使用默认配置）。
+
+**参数：**
+- `folderPath` (string): 源文件夹路径
+- `lodLevel` (int): LOD级别（1/2/3），默认1
+
+**返回：**
+- `MiniGameBatchMigrationAPIResult`: 批量迁移结果
+
+**示例：**
+```csharp
+// 一键迁移，使用lod1纹理
+var result = AtlasToolsAPI.QuickMigrateToMiniGame( "Assets/Art/Avatar/BasicAvatar/Head", lodLevel: 1 );
+```
+
+---
+
+### 迁移条件说明
+
+物件必须满足以下条件才能被迁移：
+
+1. **存在LOD文件夹**: 物件目录下必须有 `LOD` 文件夹
+2. **存在Mesh文件夹**: 物件目录下必须有 `Mesh` 文件夹
+3. **存在有效Mesh**: Mesh文件夹中必须有原始Mesh或 `_70` 后缀的LOD Mesh
+
+---
+
+### 目录结构约定
+
+#### 源目录结构
+Assets/Art/Avatar/BasicAvatar/
+├── Head/
+│ └── fh_0001/
+│ ├── LOD/
+│ │    ├── AtlasMaterial/ # 图集材质
+│ │    └── AtlasTexture/ # 图集纹理（含_lod1/_lod2/_lod3）
+│ ├── Mesh/
+│ │    ├── mesh_fh_0001.asset # 原始Mesh
+│ │    └── mesh_fh_0001_70.asset # LOD Mesh
+│ └── fh_0001.prefab
+
+#### 目标目录结构
+
+Assets/Art_MiniGame/Avatar/BasicAvatar/
+├── Head/
+│    └── fh_0001/
+│    ├── AtlasMaterial/ # 复制的材质（纹理引用已替换）
+│    ├── AtlasTexture/ # 复制的_lod纹理
+│    └── fh_0001_MiniGame.prefab # 新创建的Prefab
+
+---
+
+### LOD级别说明
+
+| 级别 | 纹理后缀 | 说明 |
+|------|----------|------|
+| Lod1 | _lod1 | 最高质量，适合中端设备 |
+| Lod2 | _lod2 | 中等质量，适合低端设备 |
+| Lod3 | _lod3 | 最低质量，适合极低配置 |
 
 ---
 
 ## 版本历史
-| 版本 | 更新内容 |
-| --- | --- |
-| 1.0 | 初始版本：图集生成、材质替换功能 |
-| 1.1 | 新增 LOD MaxSize 扫描与同步功能 |
-| 1.2 | 新增 `ScanAndSyncMaxSize` 一键方法（推荐） |
+| 版本  | 更新内容                                          |
+|-----|-----------------------------------------------|
+| 1.0 | 初始版本：图集生成、材质替换功能                              |
+| 1.1 | 新增 LOD MaxSize 扫描与同步功能                        |
+| 1.2 | 新增 `ScanAndSyncMaxSize` 一键方法（推荐）              |
 | 1.3 | 新增 `ScanMaterialTextureReferences` 材质纹理引用扫描功能 |
-
-
+| 1.4 | 新增小程序资源迁移API                                  |

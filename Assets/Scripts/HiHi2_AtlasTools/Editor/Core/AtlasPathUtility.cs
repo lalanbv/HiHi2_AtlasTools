@@ -18,6 +18,8 @@ namespace HiHi2.AtlasTools.Editor
                 return false;
             }
 
+            folderPath = NormalizePath(folderPath);
+
             if (AssetDatabase.IsValidFolder(folderPath))
                 return true;
 
@@ -29,7 +31,7 @@ namespace HiHi2.AtlasTools.Editor
             }
 
             string currentPath = pathParts[0];
-            
+
             for (int i = 1; i < pathParts.Length; i++)
             {
                 string nextPath = $"{currentPath}/{pathParts[i]}";
@@ -44,7 +46,7 @@ namespace HiHi2.AtlasTools.Editor
                 }
                 currentPath = nextPath;
             }
-            
+
             AssetDatabase.Refresh();
             return true;
         }
@@ -91,7 +93,7 @@ namespace HiHi2.AtlasTools.Editor
             {
                 AtlasLogger.LogWarning($"Failed to delete folder: {folderPath}");
             }
-            
+
             return result;
         }
 

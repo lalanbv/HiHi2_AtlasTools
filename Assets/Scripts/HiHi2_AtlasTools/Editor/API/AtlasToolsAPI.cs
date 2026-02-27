@@ -2,6 +2,7 @@
 using UnityEditor;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace HiHi2.AtlasTools.Editor
 {
@@ -912,6 +913,313 @@ namespace HiHi2.AtlasTools.Editor
             }
 
             return apiInfo;
+        }
+
+        #endregion
+
+        #region 方法八：小程序资源迁移
+
+        /// <summary>
+        /// 小程序迁移扫描结果
+        /// </summary>
+        public class MiniGameScanResult
+        {
+            public bool success;
+            public string message;
+            public int totalCount;
+            public int validCount;
+            public List<MiniGameObjectAPIInfo> objects = new List<MiniGameObjectAPIInfo>();
+        }
+
+        /// <summary>
+        /// 小程序物件信息（API版本）
+        /// </summary>
+        public class MiniGameObjectAPIInfo
+        {
+            public string objectName;
+            public string sourcePath;
+            public string category;
+            public bool canMigrate;
+            public string invalidReason;
+            public bool hasLodFolder;
+            public bool hasMeshFolder;
+            public bool hasPrefab;
+            public bool hasOriginalMesh;
+            public bool hasLodMesh;
+        }
+
+        /// <summary>
+        /// 小程序迁移选项（API版本）
+        /// </summary>
+        public class MiniGameMigrationOptions
+        {
+            public int lodLevel = 1;
+            public int meshType = 0;
+            public bool createPrefab = true;
+            public bool overwriteExisting = false;
+        }
+
+        /// <summary>
+        /// 小程序迁移结果（API版本）
+        /// </summary>
+        public class MiniGameMigrationAPIResult
+        {
+            public bool success;
+            public string message;
+            public string objectName;
+            public int copiedMaterialCount;
+            public int copiedTextureCount;
+            public int replacedTextureCount;
+            public bool prefabCreated;
+            public string outputPrefabPath;
+        }
+
+        /// <summary>
+        /// 小程序批量迁移结果（API版本）
+        /// </summary>
+        public class MiniGameBatchMigrationAPIResult
+        {
+            public bool success;
+            public string message;
+            public int totalCount;
+            public int successCount;
+            public int failedCount;
+            public int skippedCount;
+            public List<MiniGameMigrationAPIResult> results = new List<MiniGameMigrationAPIResult>();
+        }
+
+        /// <summary>
+        /// 扫描指定文件夹下可迁移到小程序的物件
+        /// </summary>
+        /// <param name="folderPath">源文件夹路径（Assets/...格式）</param>
+        /// <returns>扫描结果，包含所有可迁移物件的信息</returns>
+        public static MiniGameScanResult ScanMiniGameObjects(string folderPath)
+        {
+            var result = new MiniGameScanResult();
+
+            try
+            {
+                if (string.IsNullOrEmpty(folderPath))
+                {
+                    result.success = false;
+                    result.message = "文件夹路径不能为空";
+                    AtlasLogger.LogError(result.message);
+                    return result;
+                }
+
+                folderPath = AtlasPathUtility.NormalizePath(folderPath);
+
+                if (!AtlasPathUtility.IsValidAssetPath(folderPath))
+                {
+                    result.success = false;
+                    result.message = $"路径格式无效，必须以Assets/开头: {folderPath}";
+                    AtlasLogger.LogError(result.message);
+                    return result;
+                }
+
+                if (!AssetDatabase.IsValidFolder(folderPath))
+                {
+                    result.success = false;
+                    result.message = $"指定路径不是有效文件夹: {folderPath}";
+                    AtlasLogger.LogError(result.message);
+                    return result;
+                }
+
+                List<AvatarObjectInfo> objects = MiniGameMigratorScanner.ScanFolder(folderPath);
+
+                result.totalCount = objects.Count;
+                result.validCount = objects.Count(o => o.CanMigrate);
+
+                foreach (var obj in objects)
+                {
+                    result.objects.Add(new MiniGameObjectAPIInfo
+                    {
+                        objectName = obj.objectName,
+                        sourcePath = obj.sourcePath,
+                        category = obj.category,
+                        canMigrate = obj.CanMigrate,
+                        invalidReason = obj.invalidReason,
+                        hasLodFolder = obj.hasLodFolder,
+                        hasMeshFolder = obj.hasMeshFolder,
+                        hasPrefab = obj.hasPrefab,
+                        hasOriginalMesh = obj.hasOriginalMesh,
+                        hasLodMesh = obj.hasLodMesh
+                    });
+                }
+
+                result.success = true;
+                result.message = $"扫描完成：共 {result.totalCount} 个物件，{result.validCount} 个可迁移";
+
+                AtlasLogger.Log($"<color=green>{result.message}</color>");
+            }
+            catch (System.Exception e)
+            {
+                result.success = false;
+                result.message = $"扫描异常: {e.Message}";
+                AtlasLogger.LogError($"{result.message}\n{e.StackTrace}");
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// 迁移单个物件到小程序目录
+        /// </summary>
+        /// <param name="sourceObjectPath">源物件文件夹路径（Assets/...格式）</param>
+        /// <param name="lodLevel">LOD级别（1/2/3）</param>
+        /// <param name="useLodMesh">是否使用LOD Mesh（_70后缀）</param>
+        /// <param name="createPrefab">是否创建优化后的Prefab</param>
+        /// <returns>迁移结果</returns>
+        public static MiniGameMigrationAPIResult MigrateObjectToMiniGame(
+            string sourceObjectPath,
+            int lodLevel = 1,
+            bool useLodMesh = false,
+            bool createPrefab = true)
+        {
+            var result = new MiniGameMigrationAPIResult();
+
+            try
+            {
+                if (string.IsNullOrEmpty(sourceObjectPath))
+                {
+                    result.success = false;
+                    result.message = "源物件路径不能为空";
+                    AtlasLogger.LogError(result.message);
+                    return result;
+                }
+
+                sourceObjectPath = AtlasPathUtility.NormalizePath(sourceObjectPath);
+
+                AvatarObjectInfo objectInfo = MiniGameMigratorScanner.ScanObjectFolder(sourceObjectPath);
+
+                if (objectInfo == null || !objectInfo.CanMigrate)
+                {
+                    result.success = false;
+                    result.message = objectInfo?.invalidReason ?? "物件不满足迁移条件";
+                    AtlasLogger.LogError(result.message);
+                    return result;
+                }
+
+                MigrationOptions options = new MigrationOptions
+                {
+                    lodLevel = (LodLevel)lodLevel,
+                    meshType = useLodMesh ? MeshType.Lod : MeshType.Original,
+                    createPrefab = createPrefab
+                };
+
+                MigrationResult migrationResult = MiniGameMigratorProcessor.MigrateObject(objectInfo, options);
+
+                result.success = migrationResult.success;
+                result.message = migrationResult.message;
+                result.objectName = migrationResult.objectName;
+                result.copiedMaterialCount = migrationResult.copiedMaterialCount;
+                result.copiedTextureCount = migrationResult.copiedTextureCount;
+                result.replacedTextureCount = migrationResult.replacedTextureCount;
+                result.prefabCreated = migrationResult.prefabCreated;
+                result.outputPrefabPath = migrationResult.outputPrefabPath;
+            }
+            catch (System.Exception e)
+            {
+                result.success = false;
+                result.message = $"迁移异常: {e.Message}";
+                AtlasLogger.LogError($"{result.message}\n{e.StackTrace}");
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// 批量迁移物件到小程序目录
+        /// </summary>
+        /// <param name="folderPath">源文件夹路径（Assets/...格式）</param>
+        /// <param name="lodLevel">LOD级别（1/2/3）</param>
+        /// <param name="useLodMesh">是否使用LOD Mesh（_70后缀）</param>
+        /// <param name="createPrefab">是否创建优化后的Prefab</param>
+        /// <returns>批量迁移结果</returns>
+        public static MiniGameBatchMigrationAPIResult MigrateBatchToMiniGame(
+            string folderPath,
+            int lodLevel = 1,
+            bool useLodMesh = false,
+            bool createPrefab = true)
+        {
+            var result = new MiniGameBatchMigrationAPIResult();
+
+            try
+            {
+                if (string.IsNullOrEmpty(folderPath))
+                {
+                    result.success = false;
+                    result.message = "文件夹路径不能为空";
+                    AtlasLogger.LogError(result.message);
+                    return result;
+                }
+
+                folderPath = AtlasPathUtility.NormalizePath(folderPath);
+
+                List<AvatarObjectInfo> objects = MiniGameMigratorScanner.ScanFolder(folderPath);
+                List<AvatarObjectInfo> validObjects = objects.Where(o => o.CanMigrate).ToList();
+
+                if (validObjects.Count == 0)
+                {
+                    result.success = false;
+                    result.message = "没有可迁移的物件";
+                    AtlasLogger.LogWarning(result.message);
+                    return result;
+                }
+
+                MigrationOptions options = new MigrationOptions
+                {
+                    lodLevel = (LodLevel)lodLevel,
+                    meshType = useLodMesh ? MeshType.Lod : MeshType.Original,
+                    createPrefab = createPrefab
+                };
+
+                BatchMigrationResult batchResult = MiniGameMigratorProcessor.MigrateBatch(validObjects, options);
+
+                result.success = batchResult.success;
+                result.message = batchResult.message;
+                result.totalCount = batchResult.totalCount;
+                result.successCount = batchResult.successCount;
+                result.failedCount = batchResult.failedCount;
+                result.skippedCount = batchResult.skippedCount;
+
+                foreach (var r in batchResult.results)
+                {
+                    result.results.Add(new MiniGameMigrationAPIResult
+                    {
+                        success = r.success,
+                        message = r.message,
+                        objectName = r.objectName,
+                        copiedMaterialCount = r.copiedMaterialCount,
+                        copiedTextureCount = r.copiedTextureCount,
+                        replacedTextureCount = r.replacedTextureCount,
+                        prefabCreated = r.prefabCreated,
+                        outputPrefabPath = r.outputPrefabPath
+                    });
+                }
+            }
+            catch (System.Exception e)
+            {
+                result.success = false;
+                result.message = $"批量迁移异常: {e.Message}";
+                AtlasLogger.LogError($"{result.message}\n{e.StackTrace}");
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// 一键迁移指定文件夹到小程序目录
+        /// 自动扫描、过滤并迁移所有有效物件
+        /// </summary>
+        /// <param name="folderPath">源文件夹路径（Assets/...格式）</param>
+        /// <param name="lodLevel">LOD级别（1/2/3），默认1</param>
+        /// <returns>批量迁移结果</returns>
+        public static MiniGameBatchMigrationAPIResult QuickMigrateToMiniGame(
+            string folderPath,
+            int lodLevel = 1)
+        {
+            return MigrateBatchToMiniGame(folderPath, lodLevel, false, true);
         }
 
         #endregion
