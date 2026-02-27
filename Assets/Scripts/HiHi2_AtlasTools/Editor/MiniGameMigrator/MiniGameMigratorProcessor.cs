@@ -576,7 +576,7 @@ namespace HiHi2.AtlasTools.Editor
 
         /// <summary>
         /// 创建优化后的Prefab
-        /// 实例化源Prefab，替换其中的材质和Mesh引用，保存为新的Prefab
+        /// 实例化源Prefab，解包为独立GameObject，替换其中的材质和Mesh引用，保存为新的独立Prefab
         /// </summary>
         /// <param name="objectInfo">物件信息</param>
         /// <param name="targetPath">目标路径</param>
@@ -611,6 +611,10 @@ namespace HiHi2.AtlasTools.Editor
 
             try
             {
+                // 关键步骤：解包Prefab实例，切断与源Prefab的关联，确保生成独立Prefab而非变体
+                PrefabUtility.UnpackPrefabInstance(instance, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
+                AtlasLogger.Log($"  已解包Prefab实例，切断与源Prefab的关联");
+
                 // 构建材质映射字典（路径和名称两种索引方式）
                 Dictionary<string, Material> materialPathDict = new Dictionary<string, Material>();
                 Dictionary<string, Material> materialNameDict = new Dictionary<string, Material>();
@@ -644,7 +648,7 @@ namespace HiHi2.AtlasTools.Editor
 
                 GameObject newPrefab = PrefabUtility.SaveAsPrefabAsset(instance, prefabPath);
 
-                AtlasLogger.Log($"  创建Prefab: {prefabPath}");
+                AtlasLogger.Log($"  创建独立Prefab: {prefabPath}");
 
                 return newPrefab != null;
             }
